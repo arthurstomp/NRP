@@ -1,0 +1,7 @@
+We will assume the problem is in its most general form, i.e. we assume that we are given customer requirements that will have prerequisites and will not be independent. Thus our input will comprise a number, n, of customers and for each 1 <= i <= n, a set of requirements ,Ri contido em R. We will also have a directed, acyclic graph, G=(R,E) representing prerequisites. We assume G is transitive, but if not, we can easily compute its transitive closure using Warshall's algorithm [11]. If the cardinality of R is m, the digraph, G, will be represented as an m £ m Boolean matrix, M, where
+M[i,h,] = T if (ri,rj) pertencem a E
+Then to compute parents(Rk) for any Rk contido em R we
+compute a Boolean array, Pk, where
+Pk[i] = T iff ri pertence a parents(Rk)
+i.e. to compute Pk, we simply `or' together columns of the matrix, M, corresponding to the elements of Rk. This is an O(|Rk|m) operation.
+Thus, if we need to evaluate the cost of meeting the requirements of p customers, 1 < p < n we can find this cost in O(pqm)time where q is the largest number of requirements of any of the customers. Clearly, p < n and q < m so this evaluation is O(nm2) but this is very much aworst case bound and, in practice, evaluation will be fast. Because of this, it is appropriate to consider the use of algorithms such asgenetic algorithms, simulated annealing or tabu search tosolve the next release problem.

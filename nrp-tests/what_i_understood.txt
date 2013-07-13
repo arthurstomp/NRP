@@ -1,0 +1,19 @@
+O orçamento é definido por um "cost ratio"(relação de custo) . orçamento = cost_ratio * custo total dos requerimentos.
+
+O primeiro valor é o número de níveis que o grafo terá (n)
+
+(linhas começando por ^ devem ser ignoradas)
+
+Para 2n linhas seguintes. teremos:
+  linhas impares seram o número de requerimentos para o nível (2n/2).round + 1
+  linhas pares seram os custos dos requerimentos desse nível.
+
+A próxima linha será o número de dependências.
+As linhas seguintes iram descrever cada dependência.A -> B (B depende de A)
+
+A próxima linha será o número de clientes.
+As linhas seguintes iram descrever cada cliente . peso_do_cliente_para_o_projeto número_de_requesitos_desejado_por_esse_cliente lista_dos_requerimentos.
+
+Vou supor que o id dos requerimentos são definidos na ordem em que são apresentados.
+
+

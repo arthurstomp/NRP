@@ -1,5 +1,5 @@
 class NRP
-  attr_accessor :id, :costumers, :enhancements, :adjancy_matrix_cache
+  attr_accessor :id, :costumers, :enhancements, :adjancy_matrix
 
   require 'graphviz'
   require 'graphviz/theory'
@@ -17,9 +17,9 @@ class NRP
       self.costumers = result[1]
     end
 
-    if self.adjancy_matrix_cache.nil?
+    if self.adjancy_matrix.nil?
       graph_theory = GraphViz::Theory.new(graph_of_enhancements)
-      self.adjancy_matrix_cache = graph_theory.adjancy_matrix
+      self.adjancy_matrix = graph_theory.adjancy_matrix
     end
   end
 

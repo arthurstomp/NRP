@@ -1,8 +1,25 @@
+require 'graphviz'
+require 'graphviz/theory'
+
+class GraphViz::Math::Matrix
+  def enhancements_for_implementation(required_enhancements = Array.new(self.columns, 0))
+    raise "Invalid required enhancements. required_enhancements.class = #{required_enhancements.class} must be #{Array.class}" if required_enhancements.class != Array.class
+
+    result_column = Array.new self.lines, 0
+
+    required_enhancements.each do |enhancement|
+      column_from_enhancement = self.column enhancement
+      column_from_enhancement.each do |value|
+        index = column_from_enhancement.index value
+        result_column[index] = (value == 1 or result_column[index] == 1) ? 1 : 0
+      end
+    end
+  end
+end
+
 class NRP
   attr_accessor :id, :costumers, :enhancements, :adjancy_matrix
 
-  require 'graphviz'
-  require 'graphviz/theory'
 
   def initialize(opt={})
     self.costumers = opt[:costumers] if not opt[:costumers].nil? and opt[:costumers].class == Hash
@@ -20,6 +37,8 @@ class NRP
     if self.adjancy_matrix.nil?
       graph_theory = GraphViz::Theory.new(graph_of_enhancements)
       self.adjancy_matrix = graph_theory.adjancy_matrix
+      puts self.adjancy_matrix.columns
+      #self.adjancy_matrix.enhancements_for_implementation nil
     end
   end
 
@@ -85,7 +104,6 @@ class NRP
 
     enhancements_digraph = GraphViz.new( :enhancements, :type => :digraph )
     nodes_hash = {}
-    #Create a node for every enhancement
     enhancements_hash.each do |key, value|
       nodes_hash[key] = enhancements_digraph.add_nodes("node#{key}", :label => "#{key}") 
     end
@@ -190,3 +208,4 @@ end
 
 
 n = NRP.new :path => 'nrp-tests/nrp1.txt'
+

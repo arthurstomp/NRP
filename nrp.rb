@@ -5,21 +5,16 @@ class GraphViz::Math::Matrix
   def enhancements_for_implementation(binary_required_enhancements = Array.new(self.columns, 0))
     raise "Invalid required enhancements. binary_required_enhancements.class(#{binary_required_enhancements.class}) must be an Array" if binary_required_enhancements.class != Array
 
-    #puts "Binary required enhancements = #{binary_required_enhancements.to_s}"
-
     result_column = Array.new self.lines, 0
 
     binary_required_enhancements.each_index do |binary_enhancement_index|
       binary_enhancement = binary_required_enhancements[binary_enhancement_index]
-      #puts "enhancement = #{binary_enhancement_index + 1} will be implemented = #{binary_enhancement == 1 ? true : false}"
       if binary_enhancement == 1
         column_of_enhancement = self.column binary_enhancement_index + 1
-        #puts "Column of enhancement = #{column_of_enhancement.to_s}"
-        #puts "result column = #{result_column.to_s}"
         result_column = self.or_columns(result_column, column_of_enhancement)
-        #puts "result column after or = #{result_column}"
       end
     end
+
     result_column = self.or_columns result_column, binary_required_enhancements
   end
 
@@ -35,12 +30,14 @@ class GraphViz::Math::Matrix
 end
 
 class NRP
-  attr_accessor :id, :costumers, :enhancements, :adjancy_matrix
-
+  attr_accessor :id, :costumers, :enhancements, :budget, :ratio, :adjancy_matrix
 
   def initialize(opt={})
     self.costumers = opt[:costumers] if not opt[:costumers].nil? and opt[:costumers].class == Hash
     self.enhancements = opt[:enhancements] if opt[:enhancements] and opt[:enhancements].class == Hash
+    self.ratio = not opt[:ratio].nil? ? opt[:ratio] : 0.5
+    self.budget = opt[:budget] * self.ratio if opt[:budget]
+    
     if not opt[:path].nil? 
       if opt[:path][0] != '/'
         pwd = String.new ENV['PWD']
@@ -49,6 +46,7 @@ class NRP
       result = self.class.read_test opt[:path] 
       self.enhancements = result[0]
       self.costumers = result[1]
+      self.budget = result[2]
     end
 
     if self.adjancy_matrix.nil?
@@ -150,11 +148,13 @@ class NRP
     test_file = File.open(test_file_path,'r')
     enhancements = []
     enhancements_hash = {}
+    enhancements_cost_sum = 0
     levels_of_enhancements = test_file.gets.to_i
     (1..levels_of_enhancements).each do |level|
       number_of_enhancements_at_level  = test_file.gets.to_i
       cost_of_level = test_file.gets.split(" ")
       cost_of_level.each do |cost|
+        enhancements_cost_sum += cost.to_i
         enhancement = Enhancement.new(cost.to_i)
         enhancement.level = level
         enhancements_hash[enhancement.id] = enhancement
@@ -162,10 +162,8 @@ class NRP
       end
     end
     number_of_dependencies = test_file.gets.to_i
-    #puts "Number of dependencies = #{number_of_dependencies}"
     (1..number_of_dependencies).each do 
       dependence = test_file.gets.split(" ")
-      #puts "dependence #{dependence}"
       required_id = dependence[0].to_i
       enhancement_id = dependence[1].to_i
       destination_enhancement = enhancements_hash[enhancement_id]
@@ -185,7 +183,7 @@ class NRP
     test_file.close
     Enhancement.reset_id
     Costumer.reset_id
-    return [enhancements_hash,costumers_hash]
+    return [enhancements_hash,costumers_hash,enhancements_cost_sum]
   end
 end
 
@@ -233,5 +231,6 @@ class Costumer
 end
 
 
-n = NRP.new :path => 'nrp-tests/article_example.txt'
+n = NRP.new :path => 'nrp-tests/article_example.txt', :ratio => 0.7
+puts n.ratio
 puts n.cost(3)

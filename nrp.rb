@@ -68,14 +68,15 @@ class NRP
   end
 
   def cost(costumer_id)
-    costumer = self.costumer[costumer_id]
-    enhancements_required = costumers.enhancements
-    enhancements_required.each do |id|
-
+    enhancements_for_implementation = self.adjancy_matrix.enhancements_for_implementation self.required_enhancements_of_costumer costumer_id
+    cost_sum = 0
+    enhancements_for_implementation.each_index do |i|
+      if  enhancements_for_implementation[i] == 1
+        enhancement = self.enhancements[i+1]
+        cost_sum += enhancement.cost
+      end
     end
-  end
-
-  def weight(costumer_id)
+    return cost_sum
   end
 
   def to_s
@@ -233,3 +234,4 @@ end
 
 
 n = NRP.new :path => 'nrp-tests/article_example.txt'
+puts n.cost(3)

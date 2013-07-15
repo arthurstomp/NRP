@@ -14,6 +14,7 @@ class GraphViz::Math::Matrix
         result_column[index] = (value == 1 or result_column[index] == 1) ? 1 : 0
       end
     end
+
   end
 end
 
@@ -37,9 +38,17 @@ class NRP
     if self.adjancy_matrix.nil?
       graph_theory = GraphViz::Theory.new(graph_of_enhancements)
       self.adjancy_matrix = graph_theory.adjancy_matrix
-      puts self.adjancy_matrix.columns
-      #self.adjancy_matrix.enhancements_for_implementation nil
     end
+  end
+
+  def required_enhancements_of_costumer(costumer)
+    costumer = self.costumers[costumer] if costumer.class == Fixnum
+    required_enhancements = costumer.enhancements
+    binary_representation_of_required_enhancements = Array.new self.adjancy_matrix.columns, 0
+    required_enhancements.each do |enhancement|
+      binary_representation_of_required_enhancements[enhancement.to_i - 1] = 1
+    end
+    return binary_representation_of_required_enhancements
   end
 
   def cost(costumer_id)
@@ -207,5 +216,5 @@ class Costumer
 end
 
 
-n = NRP.new :path => 'nrp-tests/nrp1.txt'
-
+n = NRP.new :path => 'nrp-tests/article_example.txt'
+puts n.required_enhancements_of_costumer 1

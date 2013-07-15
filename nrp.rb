@@ -2,19 +2,35 @@ require 'graphviz'
 require 'graphviz/theory'
 
 class GraphViz::Math::Matrix
-  def enhancements_for_implementation(required_enhancements = Array.new(self.columns, 0))
-    raise "Invalid required enhancements. required_enhancements.class = #{required_enhancements.class} must be #{Array.class}" if required_enhancements.class != Array.class
+  def enhancements_for_implementation(binary_required_enhancements = Array.new(self.columns, 0))
+    raise "Invalid required enhancements. binary_required_enhancements.class(#{binary_required_enhancements.class}) must be an Array" if binary_required_enhancements.class != Array
+
+    #puts "Binary required enhancements = #{binary_required_enhancements.to_s}"
 
     result_column = Array.new self.lines, 0
 
-    required_enhancements.each do |enhancement|
-      column_from_enhancement = self.column enhancement
-      column_from_enhancement.each do |value|
-        index = column_from_enhancement.index value
-        result_column[index] = (value == 1 or result_column[index] == 1) ? 1 : 0
+    binary_required_enhancements.each_index do |binary_enhancement_index|
+      binary_enhancement = binary_required_enhancements[binary_enhancement_index]
+      #puts "enhancement = #{binary_enhancement_index + 1} will be implemented = #{binary_enhancement == 1 ? true : false}"
+      if binary_enhancement == 1
+        column_of_enhancement = self.column binary_enhancement_index + 1
+        #puts "Column of enhancement = #{column_of_enhancement.to_s}"
+        #puts "result column = #{result_column.to_s}"
+        result_column = self.or_columns(result_column, column_of_enhancement)
+        #puts "result column after or = #{result_column}"
       end
     end
+    result_column = self.or_columns result_column, binary_required_enhancements
+  end
 
+  def or_columns(columnA, columnB)
+    columnA, columnB = self.column(columnA_index) , self.column(columnB_index) if columnA.class == Fixnum and columnB.class == Fixnum
+    raise "The columns dont have the same size" if columnA.size != columnB.size
+    result_column = Array.new columnA.size, 0
+    columnA.each_index do |i|
+      result_column[i] = (columnA[i] == 1 or columnB[i] == 1) ? 1 : 0
+    end
+    return result_column
   end
 end
 
@@ -217,4 +233,3 @@ end
 
 
 n = NRP.new :path => 'nrp-tests/article_example.txt'
-puts n.required_enhancements_of_costumer 1

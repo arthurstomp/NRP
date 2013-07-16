@@ -1,6 +1,17 @@
 require 'graphviz'
 require 'graphviz/theory'
 
+class Array
+  def or(other_array)
+    raise "Array dont have the same size" if self.size != other_array.size
+    result_array = Array.new self.size, 0
+    self.each_index do |i|
+      result_array[i] = (self[i] == 1 or other_array[i] == 1) ? 1 : 0
+    end
+    return result_array
+  end
+end
+
 class GraphViz::Math::Matrix
   def enhancements_for_implementation(binary_required_enhancements = Array.new(self.columns, 0))
     raise "Invalid required enhancements. binary_required_enhancements.class(#{binary_required_enhancements.class}) must be an Array" if binary_required_enhancements.class != Array
@@ -30,12 +41,12 @@ class GraphViz::Math::Matrix
 end
 
 class NRP
-  attr_accessor :id, :costumers, :enhancements, :budget, :ratio, :adjancy_matrix
+  attr_accessor :id, :customers, :enhancements, :budget, :ratio, :adjancy_matrix
 
   def initialize(opt={})
-    self.costumers = opt[:costumers] if not opt[:costumers].nil? and opt[:costumers].class == Hash
+    self.customers = opt[:customers] if not opt[:customers].nil? and opt[:customers].class == Hash
     self.enhancements = opt[:enhancements] if opt[:enhancements] and opt[:enhancements].class == Hash
-    self.ratio = not opt[:ratio].nil? ? opt[:ratio] : 0.5
+    self.ratio = (not opt[:ratio].nil?) ? opt[:ratio] : 0.5
     self.budget = opt[:budget] * self.ratio if opt[:budget]
     
     if not opt[:path].nil? 
@@ -45,8 +56,9 @@ class NRP
       end
       result = self.class.read_test opt[:path] 
       self.enhancements = result[0]
-      self.costumers = result[1]
-      self.budget = result[2]
+      self.customers = result[1]
+      cost_of_all_enhancements = result[2]
+      self.budget = cost_of_all_enhancements * self.ratio
     end
 
     if self.adjancy_matrix.nil?
@@ -55,18 +67,18 @@ class NRP
     end
   end
 
-  def required_enhancements_of_costumer(costumer)
-    costumer = self.costumers[costumer] if costumer.class == Fixnum
-    required_enhancements = costumer.enhancements
+  def required_enhancements_of_customer(customer)
+    customer = self.customers[customer] if customer.class == Fixnum
+    required_enhancements = customer.enhancements
     binary_representation_of_required_enhancements = Array.new self.adjancy_matrix.columns, 0
     required_enhancements.each do |enhancement|
       binary_representation_of_required_enhancements[enhancement.to_i - 1] = 1
     end
-    return binary_representation_of_required_enhancements
+    return self.adjancy_matrix.enhancements_for_implementation binary_representation_of_required_enhancements
   end
 
-  def cost(costumer_id)
-    enhancements_for_implementation = self.adjancy_matrix.enhancements_for_implementation self.required_enhancements_of_costumer costumer_id
+  def cost_of_customer(customer_id)
+    enhancements_for_implementation = self.adjancy_matrix.enhancements_for_implementation self.required_enhancements_of_customer customer_id
     cost_sum = 0
     enhancements_for_implementation.each_index do |i|
       if  enhancements_for_implementation[i] == 1
@@ -77,10 +89,47 @@ class NRP
     return cost_sum
   end
 
+  def cost_of_enhancements(binary_enhancements)
+    raise "Enhancements must be an Array" if binary_enhancements.class != Array
+    cost_sum = 0
+    binary_enhancements.each_index do |binary_enhancement_index|
+      binary_enhancement = binary_enhancements[binary_enhancement_index]
+      if binary_enhancement == 1
+        enhancement = self.enhancements[binary_enhancement_index + 1]
+        cost_sum += enhancement.cost
+      end
+    end
+    return cost_sum
+  end
+
+  def cost(customers)
+    if customers.class != Array and customers.class == Fixnum
+      customers_aux = Array.new(self.customers.size, 0)
+      customers_aux[customers - 1] = 1
+      customers = customers_aux
+    else
+      if (customers.include? true or customers.include? false)
+        customers.fill do |i|
+          customers[i] == true ? 1 : 0
+        end
+      end
+    end
+
+    final_required_enhancements = Array.new self.enhancements.size, 0
+    customers.each_index do |binary_customer_index|
+      binary_customer = customers[binary_customer_index]
+      if binary_customer == 1
+        final_required_enhancements = final_required_enhancements.or(required_enhancements_of_customer(binary_customer_index + 1))
+      end
+    end
+    puts final_required_enhancements.to_s
+    return cost_of_enhancements final_required_enhancements
+  end
+
   def to_s
-    raise "enhancements and costumers not loaded" if self.costumers.nil? or self.enhancements.nil?
+    raise "enhancements and customers not loaded" if self.customers.nil? or self.enhancements.nil?
     enhancements_hash = self.enhancements
-    costumers_hash = self.costumers
+    customers_hash = self.customers
 
     nodes_per_level = []
     min_cost_per_level = []
@@ -111,14 +160,14 @@ class NRP
 
     min_enhancements = nodes_per_level.reduce(:+)
     max_enhancements = 0
-    costumers_hash.each do |key,costumer|
-      min_enhancements = costumer.enhancements.count if min_enhancements > costumer.enhancements.count
-      max_enhancements = costumer.enhancements.count if max_enhancements < costumer.enhancements.count
+    customers_hash.each do |key,customer|
+      min_enhancements = customer.enhancements.count if min_enhancements > customer.enhancements.count
+      max_enhancements = customer.enhancements.count if max_enhancements < customer.enhancements.count
     end
     puts "Cost/Node #{cost_per_level.join("/")}"
     puts "Nodes/Level #{nodes_per_level.join("/")}"
     puts "Maximum Children/node #{max_children_per_level.join("/")}"
-    puts "Customers #{costumers_hash.count}"
+    puts "Customers #{customers_hash.count}"
     puts "Enhancements/Customers #{min_enhancements}-#{max_enhancements}"
   end
 
@@ -170,21 +219,22 @@ class NRP
       destination_enhancement.require << required_id 
       enhancements_hash[required_id].required_by << destination_enhancement.id
     end
-    number_of_costumers = test_file.gets.to_i
-    costumers = []
-    costumers_hash = {}
-    (1..number_of_costumers).each do
-      costumer_data = test_file.gets.split(' ')
-      costumer = Costumer.new(costumer_data[0], costumer_data[2..-1])
-      costumers << costumer
-      costumers_hash[costumer.id] = costumer
-      #puts "costumer #{costumer.id} weight #{costumer.weight} enhancements #{costumer.enhancements}"
+    number_of_customers = test_file.gets.to_i
+    customers = []
+    customers_hash = {}
+    (1..number_of_customers).each do
+      customer_data = test_file.gets.split(' ')
+      customer = Customer.new(customer_data[0], customer_data[2..-1])
+      customers << customer
+      customers_hash[customer.id] = customer
+      #puts "customer #{customer.id} weight #{customer.weight} enhancements #{customer.enhancements}"
     end
     test_file.close
     Enhancement.reset_id
-    Costumer.reset_id
-    return [enhancements_hash,costumers_hash,enhancements_cost_sum]
+    Customer.reset_id
+    return [enhancements_hash,customers_hash,enhancements_cost_sum]
   end
+
 end
 
 class Enhancement
@@ -209,7 +259,7 @@ class Enhancement
   end
 end
 
-class Costumer
+class Customer
   @@id_count = 1
   attr_accessor :id ,:weight, :enhancements
 
@@ -232,5 +282,11 @@ end
 
 
 n = NRP.new :path => 'nrp-tests/article_example.txt', :ratio => 0.7
-puts n.ratio
-puts n.cost(3)
+puts "Budget = #{n.budget}"
+puts n.cost([1,1,1])
+a = [true, false, true, false]
+puts "a array = #{a.to_s}"
+a.fill do |i|
+  a[i] == true ? 1 : 0
+end
+puts "a array = #{a.to_s}"

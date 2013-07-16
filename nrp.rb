@@ -102,28 +102,41 @@ class NRP
     return cost_sum
   end
 
-  def cost(customers)
+  def treat_customers(customers)
     if customers.class != Array and customers.class == Fixnum
       customers_aux = Array.new(self.customers.size, 0)
       customers_aux[customers - 1] = 1
       customers = customers_aux
     else
-      if (customers.include? true or customers.include? false)
-        customers.fill do |i|
-          customers[i] == true ? 1 : 0
-        end
-      end
     end
+    return customers
+  end
+
+  def cost(customers)
+    customers = self.treat_customers(customers)
 
     final_required_enhancements = Array.new self.enhancements.size, 0
     customers.each_index do |binary_customer_index|
-      binary_customer = customers[binary_customer_index]
+      binary_customer = customers[binary_customer_index].to_i
       if binary_customer == 1
         final_required_enhancements = final_required_enhancements.or(required_enhancements_of_customer(binary_customer_index + 1))
       end
     end
-    puts final_required_enhancements.to_s
     return cost_of_enhancements final_required_enhancements
+  end
+
+  def gain(customers)
+    customers = self.treat_customers(customers)
+    gain_sum = 0
+    customers.each_index do |i|
+      gain_sum += self.customers[i+1].weight.to_i if customers[i].to_i == 1
+    end
+    return gain_sum
+  end
+
+  def viable?(customers)
+    customers = self.treat_customers(customers)
+    return self.cost(customers) <= self.budget
   end
 
   def to_s
@@ -227,7 +240,6 @@ class NRP
       customer = Customer.new(customer_data[0], customer_data[2..-1])
       customers << customer
       customers_hash[customer.id] = customer
-      #puts "customer #{customer.id} weight #{customer.weight} enhancements #{customer.enhancements}"
     end
     test_file.close
     Enhancement.reset_id
@@ -280,13 +292,3 @@ class Customer
   end
 end
 
-
-n = NRP.new :path => 'nrp-tests/article_example.txt', :ratio => 0.7
-puts "Budget = #{n.budget}"
-puts n.cost([1,1,1])
-a = [true, false, true, false]
-puts "a array = #{a.to_s}"
-a.fill do |i|
-  a[i] == true ? 1 : 0
-end
-puts "a array = #{a.to_s}"

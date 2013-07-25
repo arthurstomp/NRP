@@ -122,7 +122,7 @@ class NRP
         final_required_enhancements = final_required_enhancements.or(required_enhancements_of_customer(binary_customer_index + 1))
       end
     end
-    return self.budget - cost_of_enhancements(final_required_enhancements)
+    return cost_of_enhancements(final_required_enhancements)
   end
 
   def gain(customers)
@@ -136,15 +136,9 @@ class NRP
 
   def fitness(customers)
     cost = self.cost(customers)
-    rest = self.budget - cost > 0 ? self.budget - cost : 0
-    gain = self.gain(customers)
-    gain - rest
+    rest_from_budget = self.budget - cost > 0 ? self.budget - cost : 0
+    self.gain(customers) - rest_from_budget
   end
-
-  #def viable?(customers)
-  #  customers = self.treat_customers(customers)
-  #  return self.cost(customers) <= self.budget
-  #end
 
   def to_s
     raise "enhancements and customers not loaded" if self.customers.nil? or self.enhancements.nil?

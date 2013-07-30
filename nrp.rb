@@ -58,7 +58,7 @@ class NRP
       self.enhancements = result[0]
       self.customers = result[1]
       cost_of_all_enhancements = result[2]
-      self.budget = cost_of_all_enhancements
+      self.budget = (cost_of_all_enhancements * self.ratio).round
     end
 
     if self.adjancy_matrix.nil?
@@ -137,7 +137,7 @@ class NRP
   def fitness(customers)
     cost = self.cost(customers)
     rest_from_budget = self.budget - cost < 0 ? (self.budget - cost) : 0
-    self.gain(customers) - rest_from_budget * self.ratio
+    self.gain(customers) - rest_from_budget 
   end
 
   def to_s

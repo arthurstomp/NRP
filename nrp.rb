@@ -47,7 +47,7 @@ class NRP
     self.customers = opt[:customers] if not opt[:customers].nil? and opt[:customers].class == Hash
     self.enhancements = opt[:enhancements] if opt[:enhancements] and opt[:enhancements].class == Hash
     self.ratio = (not opt[:ratio].nil?) ? opt[:ratio] : 0.5
-    self.budget = opt[:budget] * self.ratio if opt[:budget]
+    self.budget = (opt[:budget] * self.ratio).round if opt[:budget]
     
     if not opt[:path].nil? 
       if opt[:path][0] != '/'
@@ -58,7 +58,7 @@ class NRP
       self.enhancements = result[0]
       self.customers = result[1]
       cost_of_all_enhancements = result[2]
-      self.budget = cost_of_all_enhancements * self.ratio
+      self.budget = cost_of_all_enhancements
     end
 
     if self.adjancy_matrix.nil?
@@ -136,8 +136,8 @@ class NRP
 
   def fitness(customers)
     cost = self.cost(customers)
-    rest_from_budget = self.budget - cost > 0 ? self.budget - cost : 0
-    self.gain(customers) - rest_from_budget
+    rest_from_budget = self.budget - cost < 0 ? (self.budget - cost) : 0
+    self.gain(customers) - rest_from_budget * self.fitness
   end
 
   def to_s

@@ -1,5 +1,6 @@
 require 'graphviz'
 require 'graphviz/theory'
+require 'rgl/adjacency'
 
 class Array
   def or(other_array)
@@ -41,7 +42,7 @@ class GraphViz::Math::Matrix
 end
 
 class NRP
-  attr_accessor :id, :customers, :enhancements, :budget, :ratio, :adjancy_matrix
+  attr_accessor :id, :customers, :enhancements, :budget, :ratio, :adjancy_matrix, :transitive_closure
 
   def initialize(opt={})
     self.customers = opt[:customers] if not opt[:customers].nil? and opt[:customers].class == Hash

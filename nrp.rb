@@ -1,6 +1,9 @@
 require 'graphviz'
 require 'graphviz/theory'
-require 'rgl/adjacency'
+require 'rgl/transitivity'
+require 'rgl/dot'
+require 'rgl/traversal'
+require 'rgl/connected_components'
 
 class Array
   def or(other_array)
@@ -11,83 +14,161 @@ class Array
     end
     return result_array
   end
+
+  def column(index)
+    raise "This is not a matrix" if self.first.class != Array
+    raise "Index out of bound" if self.first.size - 1 < index
+    column = []
+    self.each do |line|
+      column << line[index]
+    end
+    return column 
+  end
+  
+  def print 
+    if self.first.class == Array
+      self.each do |item|
+        puts item.to_s
+      end
+    else
+      puts self.to_s
+    end
+  end
 end
 
-class GraphViz::Math::Matrix
-  def enhancements_for_implementation(binary_required_enhancements = Array.new(self.columns, 0))
-    raise "Invalid required enhancements. binary_required_enhancements.class(#{binary_required_enhancements.class}) must be an Array" if binary_required_enhancements.class != Array
-
-    result_column = Array.new self.lines, 0
-
-    binary_required_enhancements.each_index do |binary_enhancement_index|
-      binary_enhancement = binary_required_enhancements[binary_enhancement_index]
-      if binary_enhancement == 1
-        column_of_enhancement = self.column binary_enhancement_index + 1
-        result_column = self.or_columns(result_column, column_of_enhancement)
+module RGL::Graph
+  def adjancy_matrix
+    adjancy_matrix = []
+    self.vertices.size.times do 
+      adjancy_matrix << Array.new(self.vertices.size, 0)
+    end
+    self.each_vertex do |vertex_a|
+      self.each_adjacent(vertex_a).each do |vertex_b|
+        adjancy_matrix[vertex_a-1][vertex_b-1] = 1
       end
     end
-
-    result_column = self.or_columns result_column, binary_required_enhancements
-  end
-
-  def or_columns(columnA, columnB)
-    columnA, columnB = self.column(columnA_index) , self.column(columnB_index) if columnA.class == Fixnum and columnB.class == Fixnum
-    raise "The columns dont have the same size" if columnA.size != columnB.size
-    result_column = Array.new columnA.size, 0
-    columnA.each_index do |i|
-      result_column[i] = (columnA[i] == 1 or columnB[i] == 1) ? 1 : 0
-    end
-    return result_column
+    return adjancy_matrix
   end
 end
 
 class NRP
-  attr_accessor :id, :customers, :enhancements, :budget, :ratio, :adjancy_matrix, :transitive_closure
+  attr_accessor :id, :customers, :enhancements, :budget, :ratio, :adjancy_matrix_of_transitive_closure, :transitive_closure, :graph_of_enhancements
 
-  def initialize(opt={})
-    self.customers = opt[:customers] if not opt[:customers].nil? and opt[:customers].class == Hash
-    self.enhancements = opt[:enhancements] if opt[:enhancements] and opt[:enhancements].class == Hash
-    self.ratio = (not opt[:ratio].nil?) ? opt[:ratio] : 0.5
-    self.budget = (opt[:budget] * self.ratio).round if opt[:budget]
-    
-    if not opt[:path].nil? 
-      if opt[:path][0] != '/'
+  def load_test(test_path)
+      if test_path[0] != '/'
         pwd = String.new ENV['PWD']
-        opt[:path].prepend pwd << '/'
+        test_path.prepend pwd << '/'
       end
-      result = self.class.read_test opt[:path] 
+      result = self.class.read_test test_path
       self.enhancements = result[0]
       self.customers = result[1]
       cost_of_all_enhancements = result[2]
       self.budget = (cost_of_all_enhancements * self.ratio).round
+      return true
+  end
+
+  def initialize(opt={})
+    raise "you must give the path for the test as NRP.new :path => ..." if opt[:path].nil?
+    self.ratio = (not opt[:ratio].nil?) ? opt[:ratio] : 0.5
+    
+    load_test(opt[:path]) if not opt[:path].nil? 
+
+    generate_graph_of_enhancements
+
+    if self.transitive_closure.nil?
+      self.transitive_closure = self.graph_of_enhancements.transitive_closure
     end
 
-    if self.adjancy_matrix.nil?
-      graph_theory = GraphViz::Theory.new(graph_of_enhancements)
-      self.adjancy_matrix = graph_theory.adjancy_matrix
+    if self.adjancy_matrix_of_transitive_closure.nil?
+      self.adjancy_matrix_of_transitive_closure = self.transitive_closure.adjancy_matrix
     end
+  end
+
+  def generate_graph_of_enhancements
+    raise "Enhancements arent loaded" if self.enhancements.nil?
+    enhancements_hash =  self.enhancements
+
+    enhancements_digraph = RGL::DirectedAdjacencyGraph.new
+    enhancements_hash.each do |key, enhancement|
+      enhancements_digraph.add_vertex(key) 
+      enhancement.require.each do |enhancement_required|
+        edge = enhancements_digraph.add_edge(enhancement_required, enhancement.id)
+      end
+    end
+
+    self.graph_of_enhancements = enhancements_digraph
+  end
+
+  def self.read_test(test_file_path)
+    if not File.exist? test_file_path
+      raise "File not found"
+    end
+    test_file = File.open(test_file_path,'r')
+    enhancements = []
+    enhancements_hash = {}
+    enhancements_cost_sum = 0
+    levels_of_enhancements = test_file.gets.to_i
+    (1..levels_of_enhancements).each do |level|
+      number_of_enhancements_at_level  = test_file.gets.to_i
+      cost_of_level = test_file.gets.split(" ")
+      cost_of_level.each do |cost|
+        enhancements_cost_sum += cost.to_i
+        enhancement = Enhancement.new(cost.to_i)
+        enhancement.level = level
+        enhancements_hash[enhancement.id] = enhancement
+        enhancements << enhancement
+      end
+    end
+    number_of_dependencies = test_file.gets.to_i
+    (1..number_of_dependencies).each do 
+      dependence = test_file.gets.split(" ")
+      required_id = dependence[0].to_i
+      enhancement_id = dependence[1].to_i
+      destination_enhancement = enhancements_hash[enhancement_id]
+      destination_enhancement.require << required_id 
+      enhancements_hash[required_id].required_by << destination_enhancement.id
+    end
+    number_of_customers = test_file.gets.to_i
+    customers = []
+    customers_hash = {}
+    (1..number_of_customers).each do
+      customer_data = test_file.gets.split(' ')
+      customer = Customer.new(customer_data[0], customer_data[2..-1])
+      customers << customer
+      customers_hash[customer.id] = customer
+    end
+    test_file.close
+    Enhancement.reset_id
+    Customer.reset_id
+    return [enhancements_hash,customers_hash,enhancements_cost_sum]
+  end
+
+  def enhancements_to_be_implemented(binary_required_enhancements = Array.new(self.adjancy_matrix_of_transitive_closure.size, 0))
+    result_column = binary_required_enhancements
+
+    binary_required_enhancements.each_index do |binary_enhancement_index|
+      binary_enhancement = binary_required_enhancements[binary_enhancement_index]
+      if binary_enhancement == 1
+        column_of_enhancement = self.adjancy_matrix_of_transitive_closure.column(binary_enhancement_index)
+        result_column = result_column.or column_of_enhancement
+      end
+    end
+
+    return result_column
+  end
+
+  def standardize_enhancements(enhancements)
+    standardized_enhancements = Array.new self.adjancy_matrix_of_transitive_closure.size, 0
+    enhancements.each do |enhancement|
+      standardized_enhancements[enhancement.to_i - 1] = 1
+    end
+    return standardized_enhancements
   end
 
   def required_enhancements_of_customer(customer)
     customer = self.customers[customer] if customer.class == Fixnum
-    required_enhancements = customer.enhancements
-    binary_representation_of_required_enhancements = Array.new self.adjancy_matrix.columns, 0
-    required_enhancements.each do |enhancement|
-      binary_representation_of_required_enhancements[enhancement.to_i - 1] = 1
-    end
-    return self.adjancy_matrix.enhancements_for_implementation binary_representation_of_required_enhancements
-  end
-
-  def cost_of_customer(customer_id)
-    enhancements_for_implementation = self.adjancy_matrix.enhancements_for_implementation self.required_enhancements_of_customer customer_id
-    cost_sum = 0
-    enhancements_for_implementation.each_index do |i|
-      if  enhancements_for_implementation[i] == 1
-        enhancement = self.enhancements[i+1]
-        cost_sum += enhancement.cost
-      end
-    end
-    return cost_sum
+    required_enhancements = self.standardize_enhancements(customer.enhancements)
+    return enhancements_to_be_implemented required_enhancements
   end
 
   def cost_of_enhancements(binary_enhancements)
@@ -96,49 +177,50 @@ class NRP
     binary_enhancements.each_index do |binary_enhancement_index|
       binary_enhancement = binary_enhancements[binary_enhancement_index]
       if binary_enhancement == 1
-        enhancement = self.enhancements[binary_enhancement_index + 1]
-        cost_sum += enhancement.cost
+        cost_sum += self.enhancements[binary_enhancement_index + 1].cost
       end
     end
     return cost_sum
   end
 
-  def treat_customers(customers)
+  def standardize_customers(customers)
     if customers.class != Array and customers.class == Fixnum
       customers_aux = Array.new(self.customers.size, 0)
       customers_aux[customers - 1] = 1
       customers = customers_aux
-    else
+    elsif customers.class == Array
+      customers.each_index do |i|
+        customers[i] = customers[i].to_i
+      end
     end
     return customers
   end
 
   def cost(customers)
-    customers = self.treat_customers(customers)
+    standardized_customers = self.standardize_customers(customers)
 
     final_required_enhancements = Array.new self.enhancements.size, 0
-    customers.each_index do |binary_customer_index|
-      binary_customer = customers[binary_customer_index].to_i
-      if binary_customer == 1
-        final_required_enhancements = final_required_enhancements.or(required_enhancements_of_customer(binary_customer_index + 1))
+    standardized_customers.each_index do |standardized_customer_index|
+      if standardized_customers[standardized_customer_index] == 1
+        final_required_enhancements = final_required_enhancements.or(required_enhancements_of_customer(standardized_customer_index + 1))
       end
     end
     return cost_of_enhancements(final_required_enhancements)
   end
 
-  def gain(customers)
-    customers = self.treat_customers(customers)
-    gain_sum = 0
+  def weight(customers)
+    customers = self.standardize_customers(customers)
+    weight_sum = 0
     customers.each_index do |i|
-      gain_sum += self.customers[i+1].weight.to_i if customers[i].to_i == 1
+      weight_sum += self.customers[i+1].weight.to_i if customers[i].to_i == 1
     end
-    return gain_sum
+    return weight_sum
   end
 
   def fitness(customers)
     cost = self.cost(customers)
     rest_from_budget = self.budget - cost < 0 ? (self.budget - cost) : 0
-    self.gain(customers) - rest_from_budget 
+    self.weight(customers) - rest_from_budget 
   end
 
   def to_s
@@ -186,68 +268,6 @@ class NRP
     puts "Enhancements/Customers #{min_enhancements}-#{max_enhancements}"
   end
 
-  def graph_of_enhancements
-    raise "Enhancements arent loaded" if self.enhancements.nil?
-    enhancements_hash =  self.enhancements
-
-    enhancements_digraph = GraphViz.new( :enhancements, :type => :digraph )
-    nodes_hash = {}
-    enhancements_hash.each do |key, value|
-      nodes_hash[key] = enhancements_digraph.add_nodes("node#{key}", :label => "#{key}") 
-    end
-
-    nodes_hash.each do |key,value|
-      enhancement = enhancements_hash[key]
-      enhancement.require.each do |enhancement_required|
-        edge = enhancements_digraph.add_edges(nodes_hash[enhancement_required], nodes_hash[enhancement.id])
-      end
-    end
-    return enhancements_digraph
-  end
-
-  def self.read_test(test_file_path)
-    if not File.exist? test_file_path
-      raise "File not found"
-    end
-    test_file = File.open(test_file_path,'r')
-    enhancements = []
-    enhancements_hash = {}
-    enhancements_cost_sum = 0
-    levels_of_enhancements = test_file.gets.to_i
-    (1..levels_of_enhancements).each do |level|
-      number_of_enhancements_at_level  = test_file.gets.to_i
-      cost_of_level = test_file.gets.split(" ")
-      cost_of_level.each do |cost|
-        enhancements_cost_sum += cost.to_i
-        enhancement = Enhancement.new(cost.to_i)
-        enhancement.level = level
-        enhancements_hash[enhancement.id] = enhancement
-        enhancements << enhancement
-      end
-    end
-    number_of_dependencies = test_file.gets.to_i
-    (1..number_of_dependencies).each do 
-      dependence = test_file.gets.split(" ")
-      required_id = dependence[0].to_i
-      enhancement_id = dependence[1].to_i
-      destination_enhancement = enhancements_hash[enhancement_id]
-      destination_enhancement.require << required_id 
-      enhancements_hash[required_id].required_by << destination_enhancement.id
-    end
-    number_of_customers = test_file.gets.to_i
-    customers = []
-    customers_hash = {}
-    (1..number_of_customers).each do
-      customer_data = test_file.gets.split(' ')
-      customer = Customer.new(customer_data[0], customer_data[2..-1])
-      customers << customer
-      customers_hash[customer.id] = customer
-    end
-    test_file.close
-    Enhancement.reset_id
-    Customer.reset_id
-    return [enhancements_hash,customers_hash,enhancements_cost_sum]
-  end
 
 end
 
@@ -294,3 +314,7 @@ class Customer
   end
 end
 
+n = NRP.new :path => 'nrp-tests/article_example.txt'
+n.adjancy_matrix_of_transitive_closure.print
+puts
+puts n.cost([1,0,0])

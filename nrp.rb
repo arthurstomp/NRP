@@ -55,16 +55,17 @@ class NRP
   attr_accessor :id, :customers, :enhancements, :budget, :ratio, :adjancy_matrix_of_transitive_closure, :transitive_closure, :graph_of_enhancements
 
   def load_test(test_path)
-      if test_path[0] != '/'
-        pwd = String.new ENV['PWD']
-        test_path.prepend pwd << '/'
-      end
-      result = self.class.read_test test_path
-      self.enhancements = result[0]
-      self.customers = result[1]
-      cost_of_all_enhancements = result[2]
-      self.budget = (cost_of_all_enhancements * self.ratio).round
-      return true
+    if test_path[0] != '/'
+      pwd = String.new ENV['PWD']
+      test_path.prepend pwd << '/'
+    end
+    puts test_path
+    result = self.class.read_test test_path
+    self.enhancements = result[0]
+    self.customers = result[1]
+    cost_of_all_enhancements = result[2]
+    self.budget = (cost_of_all_enhancements * self.ratio).round
+    return true
   end
 
   def initialize(opt={})
@@ -219,8 +220,14 @@ class NRP
 
   def fitness(customers)
     cost = self.cost(customers)
-    rest_from_budget = self.budget - cost < 0 ? (self.budget - cost) : 0
-    self.weight(customers) - rest_from_budget 
+    #rest_from_budget = (self.budget - cost) < 0 ? self.budget - cost : 0
+    #self.weight(customers) - rest_from_budget 
+    #puts customers.to_s
+    if self.budget - cost > 0
+      return self.weight(customers) - cost
+    else
+      return 0
+    end
   end
 
   def to_s
@@ -267,8 +274,6 @@ class NRP
     puts "Customers #{customers_hash.count}"
     puts "Enhancements/Customers #{min_enhancements}-#{max_enhancements}"
   end
-
-
 end
 
 class Enhancement
@@ -313,8 +318,3 @@ class Customer
     @@id_count = 1
   end
 end
-
-n = NRP.new :path => 'nrp-tests/article_example.txt'
-n.adjancy_matrix_of_transitive_closure.print
-puts
-puts n.cost([1,0,0])

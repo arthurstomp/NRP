@@ -224,7 +224,7 @@ class NRP
     #self.weight(customers) - rest_from_budget 
     #puts customers.to_s
     if self.budget - cost > 0
-      return self.weight(customers) - cost
+      return self.weight(customers)
     else
       return 0
     end

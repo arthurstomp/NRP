@@ -222,9 +222,6 @@ class NRP
 
   def fitness(customers)
     cost = self.cost(customers)
-    #rest_from_budget = (self.budget - cost) < 0 ? self.budget - cost : 0
-    #self.weight(customers) - rest_from_budget 
-    #puts customers.to_s
     if self.budget - cost > 0
       return self.weight(customers)
     else

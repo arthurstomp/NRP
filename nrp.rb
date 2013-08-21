@@ -7,7 +7,7 @@ require 'rgl/connected_components'
 
 class Array
   def or(other_array)
-    raise "Array dont have the same size" if self.size != other_array.size
+    raise ArgumentError,"Array dont have the same size" if self.size != other_array.size
     result_array = Array.new self.size, 0
     self.each_index do |i|
       result_array[i] = (self[i] == 1 or other_array[i] == 1) ? 1 : 0
@@ -16,11 +16,13 @@ class Array
   end
 
   def column(index)
-    raise "This is not a matrix" if self.first.class != Array
-    raise "Index out of bound" if self.first.size - 1 < index
-    column = []
-    self.each do |line|
-      column << line[index]
+    if self[index].class == Array
+      column = []
+      self.each do |line|
+        column << line[index]
+      end
+    else
+      column = self[index]
     end
     return column 
   end

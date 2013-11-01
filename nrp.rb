@@ -225,7 +225,7 @@ class NRP
     if self.budget - cost > 0
       return self.weight(customers)
     else
-      return 0
+      return self.budget - cost
     end
   end
 

@@ -1,5 +1,3 @@
-require 'graphviz'
-require 'graphviz/theory'
 require 'rgl/transitivity'
 require 'rgl/dot'
 require 'rgl/traversal'

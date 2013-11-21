@@ -272,6 +272,37 @@ class NRP
     puts "Enhancements/Customers #{min_enhancements}-#{max_enhancements}"
   end
 
+  def save_into_file(file_path)
+    file = File.open(file_path,'w')
+    enhancements_per_level = self.enhancements_per_level
+    file.puts(enhancements_per_level.size)
+    
+    enhancements_per_level.each do |key,enhancements_of_level|
+      file.puts(enhancements_of_level.size)
+      enhancements_of_level.each do |enhancement|
+        file.print("#{enhancement.id} ")
+      end
+      file.puts
+    end
+
+    enhancements_links = self.enhancements_links
+    file.puts enhancements_links.size
+    enhancements_links.each do |link|
+      file.puts "#{link[0]} #{link[1]}"
+    end
+
+    file.puts self.customers.size
+    self.customers.each do |key,customer|
+      file.print "#{customer.weight} "
+      file.print "#{customer.enhancements.size} "
+      customer.enhancements.each do |enhancement_id|
+        file.print "#{enhancement_id} "
+      end
+      file.puts 
+    end
+    file.close
+  end
+
   def enhancements_per_level
     levels = {}
     self.enhancements.each do |key,enhancement|
@@ -284,18 +315,14 @@ class NRP
     levels
   end
 
-  def save_into_file(file_path)
-    #file = File.open(file_path,'w')
-    enhancements_per_level = self.enhancements_per_level
-    puts(enhancements_per_level.size)
-    enhancements_per_level.each do |key,enhancements_of_level|
-      puts(enhancements_of_level.size)
-      enhancements_of_level.each do |enhancement|
-        print("#{enhancement.id} ")
+  def enhancements_links 
+    links = []
+    self.enhancements.each do |key,enhancement|
+      enhancement.require.each do |require_id|
+        links << [require_id, enhancement.id]
       end
-      puts
     end
-    #file.close
+    links
   end
 end
 

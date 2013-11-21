@@ -271,6 +271,32 @@ class NRP
     puts "Customers #{customers_hash.count}"
     puts "Enhancements/Customers #{min_enhancements}-#{max_enhancements}"
   end
+
+  def enhancements_per_level
+    levels = {}
+    self.enhancements.each do |key,enhancement|
+      if not levels.include?(enhancement.level)
+        levels[enhancement.level] = [enhancement]
+      else
+        levels[enhancement.level] << enhancement
+      end
+    end
+    levels
+  end
+
+  def save_into_file(file_path)
+    #file = File.open(file_path,'w')
+    enhancements_per_level = self.enhancements_per_level
+    puts(enhancements_per_level.size)
+    enhancements_per_level.each do |key,enhancements_of_level|
+      puts(enhancements_of_level.size)
+      enhancements_of_level.each do |enhancement|
+        print("#{enhancement.id} ")
+      end
+      puts
+    end
+    #file.close
+  end
 end
 
 class Enhancement

@@ -69,10 +69,21 @@ class NRP
   end
 
   def initialize(opt={})
-    raise "you must give the path for the test as NRP.new :path => ..." if opt[:path].nil?
     self.ratio = (not opt[:ratio].nil?) ? opt[:ratio] : 0.5
-    
-    load_test(opt[:path]) if not opt[:path].nil? 
+    if not opt[:path].nil? 
+      puts "initialize from a file."
+      raise "you must give the path for the test as NRP.new :path => ..." if opt[:path].nil?
+
+      load_test(opt[:path]) if not opt[:path].nil? 
+    end
+
+
+    if not opt[:customers].nil? and not opt[:enhancements].nil?
+      puts "initialize with a set of customers and enhancements"
+      self.customers = opt[:customers]
+      self.enhancements = opt[:enhancements]
+      self.budget = (cost_of_all_enhancements * self.ratio).round 
+    end
 
     generate_graph_of_enhancements
 
@@ -83,6 +94,14 @@ class NRP
     if self.adjancy_matrix_of_transitive_closure.nil?
       self.adjancy_matrix_of_transitive_closure = self.transitive_closure.adjancy_matrix
     end
+  end
+
+  def cost_of_all_enhancements
+    cost_sum = 0
+    self.enhancements.each do |key,enhancement|
+      cost_sum += enhancement.cost
+    end
+    cost_sum
   end
 
   def generate_graph_of_enhancements
